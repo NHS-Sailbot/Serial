@@ -7,6 +7,8 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include <debug/debug.hpp>
+
 static inline constexpr unsigned int convert_baudrate(const unsigned int baudrate) {
     switch (baudrate) {
     case 50: return B50;
@@ -44,7 +46,7 @@ static inline constexpr unsigned int convert_baudrate(const unsigned int baudrat
 }
 
 namespace serial {
-    Device open(const char *const filepath, const unsigned int baud) {
+    bool open(Device &device, const char *const filepath, const unsigned int baud) {
         DEBUG_BEGIN_FUNC_PROFILE;
 
         // More information about serial communication can be found at
@@ -52,18 +54,19 @@ namespace serial {
         // I based this code off of.
 
         // Attempt to open the file.
-        auto file_descriptor = ::open(filepath, O_RDWR | O_NOCTTY | O_NDELAY);
-        if (file_descriptor == -1) {
+        device.file_descriptor = ::open(filepath, O_RDWR | O_NOCTTY | O_NDELAY);
+        if (device.file_descriptor == -1) {
             debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
-            return {};
+            return false;
         } else {
-            fcntl(file_descriptor, F_SETFL, 0);
+            fcntl(device.file_descriptor, F_SETFL, 0);
+            device.is_open = true;
         }
 
         // Lock access so that another process can't also use the port.
-        if (flock(file_descriptor, LOCK_EX | LOCK_NB) != 0) {
-            close();
-            return {};
+        if (flock(device.file_descriptor, LOCK_EX | LOCK_NB) != 0) {
+            close(device);
+            return false;
         }
 
         // If one requires no blocking, uncomment
@@ -73,7 +76,7 @@ namespace serial {
         struct termios port_settings, prev_port_settings;
 
         // First get the current options
-        tcgetattr(file_descriptor, &port_settings);
+        tcgetattr(device.file_descriptor, &port_settings);
         prev_port_settings = port_settings;
 
         // Set the baudrate into the options (in and out)
@@ -108,73 +111,73 @@ namespace serial {
 
         //
 
-        int result = tcsetattr(file_descriptor, TCSANOW, &port_settings);
+        int result = tcsetattr(device.file_descriptor, TCSANOW, &port_settings);
 
         if (result == -1) {
             debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
-            close();
-            return {};
+            tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
+            close(device);
+            return false;
         }
 
         int status;
-        if (ioctl(file_descriptor, TIOCMGET, &status) == -1) {
+        if (ioctl(device.file_descriptor, TIOCMGET, &status) == -1) {
             debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
-            close();
-            return {};
+            tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
+            close(device);
+            return false;
         }
 
         status |= TIOCM_DTR; // turn on DTR
         status |= TIOCM_RTS; // turn on RTS
 
-        if (ioctl(file_descriptor, TIOCMSET, &status) == -1) {
+        if (ioctl(device.file_descriptor, TIOCMSET, &status) == -1) {
             debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
-            close();
-            return {};
+            tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
+            close(device);
+            return false;
         }
 
         debug::timer::sleep(2);
 
-        tcflush(file_descriptor, TCIOFLUSH);
+        tcflush(device.file_descriptor, TCIOFLUSH);
 
-        return {};
+        return true;
     }
-    void close(Device *const device) {
+    void close(Device &device) {
         DEBUG_BEGIN_FUNC_PROFILE;
 
-        if (device->is_open) {
-            flock(device->file_descriptor, LOCK_UN); // Free the port so that others can use it.
-            ::close(device->file_descriptor);        // Close the device file.
-            device->is_open = false;
+        if (device.is_open) {
+            flock(device.file_descriptor, LOCK_UN); // Free the port so that others can use it.
+            ::close(device.file_descriptor);        // Close the device file.
+            device.is_open = false;
         }
     }
 
-    void flush(const Device *const device) {
+    void flush(const Device &device) {
         DEBUG_BEGIN_FUNC_PROFILE;
 
-        if (device->is_open) {
-            tcflush(device->file_descriptor, TCIOFLUSH); // Flush the io buffers
+        if (device.is_open) {
+            tcflush(device.file_descriptor, TCIOFLUSH); // Flush the io buffers
         }
     }
-    void read(const Device *const device, void *const buffer, const unsigned int size) {
+    void read(const Device &device, void *const buffer, const unsigned int size) {
         DEBUG_BEGIN_FUNC_PROFILE;
 
         // Before reading from the device, make sure the device has been opened.
-        if (device->is_open) {
+        if (device.is_open) {
             // read directly from the device file.
-            int bytes_read = ::read(device->file_descriptor, buffer, size);
+            int bytes_read = ::read(device.file_descriptor, buffer, size);
             if (bytes_read < 0) debug::log::error("read() of %d bytes failed!", size);
         }
     }
-    void write(const Device *const device, void *const buffer, const unsigned int size) {
+    void write(const Device &device, void *const buffer, const unsigned int size) {
         DEBUG_BEGIN_FUNC_PROFILE;
 
         // Before writing to the device, make sure the device has been opened.
-        if (device->is_open) {
+        if (device.is_open) {
             // Write directly to the device file.
-            int bytes_written = ::write(device->file_descriptor, buffer, size);
+            int bytes_written = ::write(device.file_descriptor, buffer, size);
             // Make sure that the number of bytes written isn't less than 0.
             // This is true when it fails to write to the file.
             if (bytes_written < 0) debug::log::error("write() of %d bytes failed!", size);

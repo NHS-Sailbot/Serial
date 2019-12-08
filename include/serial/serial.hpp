@@ -8,10 +8,15 @@ namespace serial {
         unsigned int baudrate;
     };
 
-    Device open(const char *const filepath, const unsigned int baud);
-    void close(Device *const device);
+    bool open(Device &device, const char *const filepath, const unsigned int baud);
+    static inline Device open(const char *const filepath, const unsigned int baud) {
+        Device result;
+        open(result, filepath, baud);
+        return result;
+    }
+    void close(Device &device);
 
-    void flush(const Device *const device);
-    void read(const Device *const device, void *const buffer, const unsigned int size);
-    void write(const Device *const device, void *const buffer, const unsigned int size);
+    void flush(const Device &device);
+    void read(const Device &device, void *const buffer, const unsigned int size);
+    void write(const Device &device, void *const buffer, const unsigned int size);
 } // namespace serial

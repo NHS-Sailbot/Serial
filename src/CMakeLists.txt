@@ -1,4 +1,6 @@
-include_directories(${project_include_dir})
+link_libraries(debug_lib)
+include_directories(${serial_include_dir})
+include_directories(${debug_include_dir})
 
 if (WIN32)
     set(sources ${sources} plat/windows/windows_serial.cpp)
