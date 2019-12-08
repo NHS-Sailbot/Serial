@@ -1,6 +1,7 @@
-#include <template/template.hpp>
+#include <serial/serial.hpp>
 
 int main() {
-    if (add(2, 3) != 5) return -1;
+    auto dev = serial::open("/dev/ttyUSB0", 9600);
+    if (!dev.is_open) return -1;
     return 0;
 }
