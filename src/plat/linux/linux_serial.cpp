@@ -52,16 +52,16 @@ namespace serial {
         // I based this code off of.
 
         // Attempt to open the file.
-        m_file_descriptor = ::open(filepath, O_RDWR | O_NOCTTY | O_NDELAY);
-        if (m_file_descriptor == -1) {
+        auto file_descriptor = ::open(filepath, O_RDWR | O_NOCTTY | O_NDELAY);
+        if (file_descriptor == -1) {
             debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
             return {};
         } else {
-            fcntl(m_file_descriptor, F_SETFL, 0);
+            fcntl(file_descriptor, F_SETFL, 0);
         }
 
         // Lock access so that another process can't also use the port.
-        if (flock(m_file_descriptor, LOCK_EX | LOCK_NB) != 0) {
+        if (flock(file_descriptor, LOCK_EX | LOCK_NB) != 0) {
             close();
             return {};
         }
@@ -73,12 +73,12 @@ namespace serial {
         struct termios port_settings, prev_port_settings;
 
         // First get the current options
-        tcgetattr(m_file_descriptor, &port_settings);
+        tcgetattr(file_descriptor, &port_settings);
         prev_port_settings = port_settings;
 
         // Set the baudrate into the options (in and out)
-        cfsetispeed(&port_settings, convert_baudrate(baudrate));
-        cfsetospeed(&port_settings, convert_baudrate(baudrate));
+        cfsetispeed(&port_settings, convert_baudrate(baud));
+        cfsetospeed(&port_settings, convert_baudrate(baud));
 
         // CLOCAL restricts the operating system from changing the owner of the
         // port to be this program, and CREAD enables the reciever.
@@ -108,19 +108,19 @@ namespace serial {
 
         //
 
-        int result = tcsetattr(m_file_descriptor, TCSANOW, &port_settings);
+        int result = tcsetattr(file_descriptor, TCSANOW, &port_settings);
 
         if (result == -1) {
             debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(m_file_descriptor, TCSANOW, &prev_port_settings);
+            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
             close();
             return {};
         }
 
         int status;
-        if (ioctl(m_file_descriptor, TIOCMGET, &status) == -1) {
+        if (ioctl(file_descriptor, TIOCMGET, &status) == -1) {
             debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(m_file_descriptor, TCSANOW, &prev_port_settings);
+            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
             close();
             return {};
         }
@@ -128,16 +128,16 @@ namespace serial {
         status |= TIOCM_DTR; // turn on DTR
         status |= TIOCM_RTS; // turn on RTS
 
-        if (ioctl(m_file_descriptor, TIOCMSET, &status) == -1) {
+        if (ioctl(file_descriptor, TIOCMSET, &status) == -1) {
             debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(m_file_descriptor, TCSANOW, &prev_port_settings);
+            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
             close();
             return {};
         }
 
         debug::timer::sleep(2);
 
-        tcflush(m_file_descriptor, TCIOFLUSH);
+        tcflush(file_descriptor, TCIOFLUSH);
 
         return {};
     }
@@ -145,9 +145,9 @@ namespace serial {
         DEBUG_BEGIN_FUNC_PROFILE;
 
         if (device->is_open) {
-            flock(m_file_descriptor, LOCK_UN); // Free the port so that others can use it.
-            ::close(m_file_descriptor);        // Close the device file.
-            m_is_currently_open = false;
+            flock(device->file_descriptor, LOCK_UN); // Free the port so that others can use it.
+            ::close(device->file_descriptor);        // Close the device file.
+            device->is_open = false;
         }
     }
 
