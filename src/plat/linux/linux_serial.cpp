@@ -54,9 +54,9 @@ namespace serial {
         // I based this code off of.
 
         // Attempt to open the file.
-        device.file_descriptor = ::open(filepath, O_RDWR | O_NOCTTY | O_NDELAY);
+        device.file_descriptor = ::open(filepath, O_RDWR | O_NOCTTY | O_NDELAY | O_SYNC);
         if (device.file_descriptor == -1) {
-            debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
+            // debug::log::message("serial::open(): Unable to open %s: %s", filepath, strerror(errno));
             return false;
         } else {
             fcntl(device.file_descriptor, F_SETFL, 0);
@@ -114,7 +114,7 @@ namespace serial {
         int result = tcsetattr(device.file_descriptor, TCSANOW, &port_settings);
 
         if (result == -1) {
-            debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
+            // debug::log::message("serial::open(): Unable to open %s: %s", filepath, strerror(errno));
             tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
             close(device);
             return false;
@@ -122,7 +122,7 @@ namespace serial {
 
         int status;
         if (ioctl(device.file_descriptor, TIOCMGET, &status) == -1) {
-            debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
+            // debug::log::message("serial::open(): Unable to open %s: %s", filepath, strerror(errno));
             tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
             close(device);
             return false;
@@ -132,7 +132,7 @@ namespace serial {
         status |= TIOCM_RTS; // turn on RTS
 
         if (ioctl(device.file_descriptor, TIOCMSET, &status) == -1) {
-            debug::log::message("Device::open(): Unable to open %s: %s", filepath, strerror(errno));
+            // debug::log::message("serial::open(): Unable to open %s: %s", filepath, strerror(errno));
             tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
             close(device);
             return false;
