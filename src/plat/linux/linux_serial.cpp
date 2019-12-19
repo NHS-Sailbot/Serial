@@ -7,6 +7,8 @@
 #include <termios.h>
 #include <unistd.h>
 
+#define DEBUG_ENABLE_TIMING
+#define DEBUG_ENABLE_LOGGING
 #include <debug/debug.hpp>
 
 static inline constexpr unsigned int convert_baudrate(const unsigned int baudrate) {
