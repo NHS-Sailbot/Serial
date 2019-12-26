@@ -1,22 +1,22 @@
 #pragma once
 
-namespace serial {
-    struct Device {
+namespace HENRY {
+    class Serial {
         int file_descriptor;
+
+      public:
         bool is_open;
-        const char *filepath;
         unsigned int baudrate;
+        const char *m_filepath;
+
+        Serial() = default;
+        Serial(const char *const filepath, const unsigned int baud);
+        ~Serial();
+
+        bool open(const char *const filepath, const unsigned int baud);
+        void close();
+        void flush();
+        void read(void *const buffer, const unsigned int size);
+        void write(void *const buffer, const unsigned int size);
     };
-
-    bool open(Device &device, const char *const filepath, const unsigned int baud);
-    static inline Device open(const char *const filepath, const unsigned int baud) {
-        Device result;
-        open(result, filepath, baud);
-        return result;
-    }
-    void close(Device &device);
-
-    void flush(const Device &device);
-    void read(const Device &device, void *const buffer, const unsigned int size);
-    void write(const Device &device, void *const buffer, const unsigned int size);
-} // namespace serial
+} // namespace HENRY

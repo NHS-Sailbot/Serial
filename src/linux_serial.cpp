@@ -47,27 +47,31 @@ static inline constexpr unsigned int convert_baudrate(const unsigned int baudrat
     }
 }
 
-namespace serial {
-    bool open(Device &device, const char *const filepath, const unsigned int baud) {
+namespace HENRY {
+    Serial::Serial(const char *const filepath, const unsigned int baud) { open(filepath, baud); }
+    Serial::~Serial() { close(); }
+
+    bool Serial::open(const char *const filepath, const unsigned int baud) {
         DEBUG_BEGIN_FUNC_PROFILE;
+        m_filepath = filepath;
 
         // More information about serial communication can be found at
         // https://www.cmrr.umn.edu/~strupp/serial.html#2_1. This is where
         // I based this code off of.
 
         // Attempt to open the file.
-        device.file_descriptor = ::open(filepath, O_RDWR | O_NOCTTY | O_NDELAY | O_SYNC);
-        if (device.file_descriptor == -1) {
+        file_descriptor = ::open(filepath, O_RDWR | O_NOCTTY | O_NDELAY | O_SYNC);
+        if (file_descriptor == -1) {
             // debug::log::message("serial::open(): Unable to open %s: %s", filepath, strerror(errno));
             return false;
         } else {
-            fcntl(device.file_descriptor, F_SETFL, 0);
-            device.is_open = true;
+            fcntl(file_descriptor, F_SETFL, 0);
+            is_open = true;
         }
 
         // Lock access so that another process can't also use the port.
-        if (flock(device.file_descriptor, LOCK_EX | LOCK_NB) != 0) {
-            close(device);
+        if (flock(file_descriptor, LOCK_EX | LOCK_NB) != 0) {
+            close();
             return false;
         }
 
@@ -78,7 +82,7 @@ namespace serial {
         struct termios port_settings, prev_port_settings;
 
         // First get the current options
-        tcgetattr(device.file_descriptor, &port_settings);
+        tcgetattr(file_descriptor, &port_settings);
         prev_port_settings = port_settings;
 
         // Set the baudrate into the options (in and out)
@@ -111,78 +115,78 @@ namespace serial {
         port_settings.c_cc[VMIN] = 0;  // block untill n bytes are received
         port_settings.c_cc[VTIME] = 0; // block untill a timer expires (n * 100 mSec.)
 
-        //
-
-        int result = tcsetattr(device.file_descriptor, TCSANOW, &port_settings);
+        int result = tcsetattr(file_descriptor, TCSANOW, &port_settings);
 
         if (result == -1) {
             // debug::log::message("serial::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
-            close(device);
+            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
+            close();
             return false;
         }
 
         int status;
-        if (ioctl(device.file_descriptor, TIOCMGET, &status) == -1) {
+        if (ioctl(file_descriptor, TIOCMGET, &status) == -1) {
             // debug::log::message("serial::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
-            close(device);
+            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
+            close();
             return false;
         }
 
         status |= TIOCM_DTR; // turn on DTR
         status |= TIOCM_RTS; // turn on RTS
 
-        if (ioctl(device.file_descriptor, TIOCMSET, &status) == -1) {
+        if (ioctl(file_descriptor, TIOCMSET, &status) == -1) {
             // debug::log::message("serial::open(): Unable to open %s: %s", filepath, strerror(errno));
-            tcsetattr(device.file_descriptor, TCSANOW, &prev_port_settings);
-            close(device);
+            tcsetattr(file_descriptor, TCSANOW, &prev_port_settings);
+            close();
             return false;
         }
 
         debug::timer::sleep(2);
 
-        tcflush(device.file_descriptor, TCIOFLUSH);
+        tcflush(file_descriptor, TCIOFLUSH);
 
         return true;
     }
-    void close(Device &device) {
+
+    void Serial::close() {
         DEBUG_BEGIN_FUNC_PROFILE;
 
-        if (device.is_open) {
-            flock(device.file_descriptor, LOCK_UN); // Free the port so that others can use it.
-            ::close(device.file_descriptor);        // Close the device file.
-            device.is_open = false;
+        if (is_open) {
+            flock(file_descriptor, LOCK_UN); // Free the port so that others can use it.
+            ::close(file_descriptor);        // Close the device file.
+            is_open = false;
         }
     }
 
-    void flush(const Device &device) {
+    void Serial::flush() {
         DEBUG_BEGIN_FUNC_PROFILE;
 
-        if (device.is_open) {
-            tcflush(device.file_descriptor, TCIOFLUSH); // Flush the io buffers
-        }
+        // Flush the io buffers
+        if (is_open) tcflush(file_descriptor, TCIOFLUSH);
     }
-    void read(const Device &device, void *const buffer, const unsigned int size) {
+
+    void Serial::read(void *const buffer, const unsigned int size) {
         DEBUG_BEGIN_FUNC_PROFILE;
 
         // Before reading from the device, make sure the device has been opened.
-        if (device.is_open) {
+        if (is_open) {
             // read directly from the device file.
-            int bytes_read = ::read(device.file_descriptor, buffer, size);
+            int bytes_read = ::read(file_descriptor, buffer, size);
             if (bytes_read < 0) debug::log::error("read() of %d bytes failed!", size);
         }
     }
-    void write(const Device &device, void *const buffer, const unsigned int size) {
+
+    void Serial::write(void *const buffer, const unsigned int size) {
         DEBUG_BEGIN_FUNC_PROFILE;
 
         // Before writing to the device, make sure the device has been opened.
-        if (device.is_open) {
+        if (is_open) {
             // Write directly to the device file.
-            int bytes_written = ::write(device.file_descriptor, buffer, size);
+            int bytes_written = ::write(file_descriptor, buffer, size);
             // Make sure that the number of bytes written isn't less than 0.
             // This is true when it fails to write to the file.
             if (bytes_written < 0) debug::log::error("write() of %d bytes failed!", size);
         }
     }
-} // namespace serial
+} // namespace HENRY
