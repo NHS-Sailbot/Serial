@@ -1,4 +1,4 @@
-#include <serial/serial.hpp>
+#include <HENRY/serial.hpp>
 
 namespace serial {
     Device open(const char *const filepath, const unsigned int baud) { return {}; }

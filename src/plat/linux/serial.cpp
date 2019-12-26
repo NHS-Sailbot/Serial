@@ -1,4 +1,4 @@
-#include <serial/serial.hpp>
+#include <HENRY/serial.hpp>
 
 #include <errno.h>
 #include <string.h>

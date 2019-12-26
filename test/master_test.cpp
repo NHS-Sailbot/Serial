@@ -1,5 +1,5 @@
+#include <HENRY/serial.hpp>
 #include <debug/debug.hpp>
-#include <serial/serial.hpp>
 
 int main() {
     constexpr const char *const filepath = "/dev/ttyACM0";
