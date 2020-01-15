@@ -1,24 +1,12 @@
-if (WIN32)
-set(sources ${sources}
-    windows_serial.cpp
+set(Headers
+    Serial.hpp
 )
-elseif (APPLE)
-set(sources ${sources} 
-    macos_serial.cpp
+set(Sources 
+    LinuxSerial.cpp 
 )
-elseif (UNIX)
-set(sources ${sources} 
-    linux_serial.cpp
-)
-endif()
 
-add_library(${lib_name} ${sources})
+add_library(${LibName} ${Sources} ${Headers})
+target_compile_features(${LibName} PRIVATE cxx_std_17)
 
-target_link_libraries(${lib_name} PUBLIC debug1.0.0)
-target_include_directories(${lib_name} PRIVATE ${lib_include_dir})
-
-target_compile_options(${lib_name} PRIVATE -Werror)
-target_compile_features(${lib_name} PRIVATE cxx_std_17)
-
-install(TARGETS ${lib_name} DESTINATION lib)
-install(DIRECTORY ${lib_include_dir}/HENRY DESTINATION include)
+install(TARGETS ${LibName} DESTINATION lib)
+install(FILES ${Headers} DESTINATION include/Henry)
