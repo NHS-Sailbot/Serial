@@ -2,12 +2,9 @@ set(Headers
     Serial.hpp
 )
 set(Sources 
-    LinuxSerial.cpp 
+    LinuxSerial.cpp
 )
 
-add_library(${LibName} ${Sources} ${Headers})
-target_compile_features(${LibName} PRIVATE cxx_std_17)
-target_link_libraries(${LibName} PRIVATE Debug)
-
-install(TARGETS ${LibName} DESTINATION lib)
-install(FILES ${Headers} DESTINATION include/Henry)
+add_library(Serial ${Sources} ${Headers})
+target_compile_features(Serial PUBLIC cxx_std_17)
+target_include_directories(Serial PUBLIC ${CMAKE_CURRENT_LIST_DIR})

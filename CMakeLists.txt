@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.5)
-project(Serial VERSION 1.0.0)
+cmake_minimum_required(VERSION 3.12)
 
-set(LibName ${PROJECT_NAME})
-
-add_subdirectory(src)
+if (not TARGET Serial)
+    project(Serial VERSION 1.0.0)
+    add_subdirectory(src)
+endif()
