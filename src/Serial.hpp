@@ -3,9 +3,11 @@
 namespace Henry {
 	class SerialDevice {
 	  private:
-		enum Flags { NONE = 0,
+		enum Flags {
+			NONE = 0,
 			OPEN_STATUS = 1,
-			VALID_STATUS = 2 };
+			VALID_STATUS = 2
+		};
 		unsigned int mBaudrate;
 		unsigned short mId, mFlags;
 		const char *mFilepath;
