@@ -1,26 +1,24 @@
 #include <Henry/Serial.hpp>
 
 namespace Henry {
-    SerialDevice::SerialDevice() : mBaudrate(0), mId(0), mFlags(NONE), mFilepath(nullptr) {}
-    SerialDevice::SerialDevice(const char *const deviceFilepath, const unsigned int baudrate)
-        : mBaudrate(baudrate), mId(0), mFlags(NONE), mFilepath(deviceFilepath) {
-        open(deviceFilepath, baudrate);
-    }
-    SerialDevice::~SerialDevice() { close(); }
+    namespace Windows {
+        class SerialDevice : public Henry::SerialDevice {
+          public:
+            SerialDevice(const char *const deviceFilepath, const unsigned int baudrate) {}
+            ~SerialDevice() {}
 
-    bool SerialDevice::open(const char *const deviceFilepath, const unsigned int baudrate) { 
-        return false;
-    }
+            bool open(const char *const deviceFilepath, const unsigned int baudrate) { return false; }
+            bool isOpen() const override { return false; }
+            bool isValid() const override { return false; }
+            void close() override {}
 
-    void SerialDevice::close() {
-    }
+            void flushBuffer() const override {}
+            void readBuffer(void *const, const unsigned int) override {}
+            void writeBuffer(void *const, const unsigned int) override {}
+        };
+    } // namespace Windows
 
-    void SerialDevice::flushBuffer() const {
-    }
-
-    void SerialDevice::readBuffer(void *const buffer, const unsigned int size) {
-    }
-
-    void SerialDevice::writeBuffer(void *const buffer, const unsigned int size) {
+    std::shared_ptr<SerialDevice> createSerialDevice(const char *const deviceFilepath, const unsigned int baudrate) {
+        return std::make_shared<Windows::SerialDevice>(deviceFilepath, baudrate);
     }
 } // namespace Henry
